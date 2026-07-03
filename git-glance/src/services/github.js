@@ -1,6 +1,10 @@
 const BASE_URL = 'https://api.github.com'
 
-export async function getMutlipleRepos(query = "stars:>0", count = 30, page = 1) {
+export async function getMutlipleRepos(query, count = 20, page = 1) {
+  if (query === null || query.trim() === '') {
+    query = "stars:>0"
+  }
+  console.log('query', query, 'count', count, 'page', page)
   const response = await fetch(`${BASE_URL}/search/repositories?q=${query}&per_page=${count}&page=${page}`)
 
   console.log('response', response)

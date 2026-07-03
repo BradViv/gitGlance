@@ -69,7 +69,7 @@ watch(() => [props.owner, props.name], loadRepo, { immediate: true })
         :href="repo.html_url"
         target="_blank"
         rel="noopener noreferrer"
-        class="inline-block text-blue-600 hover:underline"
+        class="inline-block text-primary-600 hover:underline"
       >
         View on GitHub →
       </a>
