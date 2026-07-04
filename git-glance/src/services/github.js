@@ -47,3 +47,20 @@ export async function getRepoContributors(owner, repo_name, page = 1, count = 5)
     hasNext: response.headers.get('Link')?.includes('rel="next"') ?? false,
   }
 }
+
+export async function getRepoOpenIssues(owner, repo_name, page = 1, count = 10) {
+  const response = await fetch(`${BASE_URL}/repos/${owner}/${repo_name}/issues?state=open&per_page=${count}&page=${page}`)
+
+  if (!response.ok) {
+    const message =
+      response.status === 404
+        ? `Repository "${owner}/${repo_name}" not found`
+        : `GitHub API error (${response.status})`
+    throw new Error(message)
+  }
+
+  return {
+    items: await response.json(),
+    hasNext: response.headers.get('Link')?.includes('rel="next"') ?? false,
+  }
+}
