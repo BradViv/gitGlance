@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { getRepo, getRepoContributors } from '@/services/github.js'
+import { getRepo, getRepoContributors, getRepoOpenIssues} from '@/services/github.js'
 
 const props = defineProps({
   owner: {
@@ -15,12 +15,20 @@ const props = defineProps({
 
 const repo = ref(null)
 const topContributors = ref([])
-const hasNextPage = ref(false)
+const contributorsHasNextPage = ref(false)
 const repo_loading = ref(false)
 const contributors_loading = ref(false)
+
+const openIssues = ref([])
+const openIssuesLoading = ref(true)
+const openIssuesError = ref(null)
+const openIssuesPage = ref(1)
+const openIssuesHasNextPage = ref(false)
+
 const error = ref(null)
 const page = ref(1)
 const contributorsPerPage = 5
+const openIssuesPerPage = 10
 
 async function loadRepo() {
   repo_loading.value = true
@@ -43,8 +51,7 @@ async function loadContributors() {
   try {
     const result = await getRepoContributors(props.owner, props.name, page.value)
     topContributors.value = result.items
-    console.log('Top contributors:', topContributors.value)
-    hasNextPage.value = result.hasNext
+    contributorsHasNextPage.value = result.hasNext
   } catch (e) {
     error.value = e.message
   } finally {
@@ -52,8 +59,24 @@ async function loadContributors() {
   }
 }
 
+async function loadOpenIssues() {
+  openIssuesLoading.value = true
+  openIssuesError.value = null
+  try {
+    const result = await getRepoOpenIssues(props.owner, props.name, openIssuesPage.value)
+    openIssues.value = result.items
+    console.log('Open Issues:', openIssues.value) // Debugging line
+    openIssuesHasNextPage.value = result.hasNext
+  } catch (e) {
+    openIssuesError.value = e.message
+  } finally {
+    openIssuesLoading.value = false
+  }
+}
+
 watch(() => [props.owner, props.name], loadRepo, { immediate: true })
 watch(() => [props.owner, props.name, page.value], loadContributors, { immediate: true })
+watch(() => [props.owner, props.name, openIssuesPage.value], loadOpenIssues, { immediate: true })
 </script>
 
 <template>
@@ -195,8 +218,8 @@ watch(() => [props.owner, props.name, page.value], loadContributors, { immediate
               </button>
               <button 
                 :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
-                  !hasNextPage ? 'opacity-50 cursor-not-allowed' : '']"
-                :disabled="!hasNextPage"
+                  !contributorsHasNextPage ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="!contributorsHasNextPage"
                 @click="page++"
               >
                 Next
@@ -213,8 +236,98 @@ watch(() => [props.owner, props.name, page.value], loadContributors, { immediate
             <p class="text-gray-700">{{ repo.description }}</p>
           </div>
 
-          <div class="flex flex-col w-1/2">
+          <div class="flex flex-col">
             <h2 class="text-xl font-semibold text-primary mb-2">Open Issues</h2>
+            <p v-if="openIssuesError" class="mb-2 text-red-600">{{ openIssuesError }}</p>
+
+            <div class="overflow-x-auto rounded border border-gray-300 bg-white shadow min-h-80">
+              <table class="w-full text-left text-sm">
+                <thead class="border-b border-gray-300 bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-3 font-medium text-gray-700">Issue Title</th>
+                    <th class="px-4 py-3 font-medium text-gray-700">Actor</th>
+                    <th class="px-4 py-3 font-medium text-gray-700">Created At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-if="openIssuesLoading && openIssues.length === 0">
+                    <tr
+                      v-for="n in openIssuesPerPage"
+                      :key="`skeleton-issue-${n}`"
+                      class="border-b border-gray-200 last:border-b-0"
+                    >
+                      <td class="px-4 py-3">
+                        <div class="h-4 w-full max-w-xs rounded bg-gray-200 animate-pulse" />
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="flex items-center gap-3">
+                          <div class="h-8 w-8 shrink-0 rounded-full bg-gray-200 animate-pulse" />
+                          <div class="h-4 w-24 rounded bg-gray-200 animate-pulse" />
+                        </div>
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="h-4 w-24 rounded bg-gray-200 animate-pulse" />
+                      </td>
+                    </tr>
+                  </template>
+                  <tr v-else-if="!openIssuesLoading && openIssues.length === 0">
+                    <td colspan="3" class="px-4 py-3 text-gray-500">No open issues found.</td>
+                  </tr>
+                  <template v-else>
+                    <tr
+                      v-for="issue in openIssues"
+                      :key="issue.id"
+                      :class="[
+                        'border-b border-gray-200 last:border-b-0',
+                        openIssuesLoading ? 'opacity-50' : '',
+                      ]"
+                    >
+                      <td class="px-4 py-3">
+                        <a
+                          :href="issue.html_url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-primary hover:underline truncate block max-w-xs"
+                        >
+                          {{ issue.title }}
+                        </a>
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="flex items-center gap-3">
+                          <img
+                            :src="issue.user.avatar_url"
+                            :alt="issue.user.login"
+                            class="h-8 w-8 shrink-0 rounded-full"
+                          />
+                          <span>{{ issue.user.login }}</span>
+                        </div>
+                      </td>
+                      <td class="px-4 py-3">{{ new Date(issue.created_at).toLocaleDateString() }}</td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination controls for open issues -->
+            <div class="flex justify-center mt-4">
+              <button 
+                :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
+                  openIssuesPage === 1 ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="openIssuesPage === 1"
+                @click="openIssuesPage--"
+              >
+                Previous
+              </button>
+              <button 
+                :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
+                  !openIssuesHasNextPage ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="!openIssuesHasNextPage"
+                @click="openIssuesPage++"
+              >
+                Next
+              </button>
+            </div>
           </div>
 
 
