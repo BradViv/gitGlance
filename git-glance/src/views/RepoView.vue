@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { getRepo } from '@/services/github.js'
+import { getRepo, getRepoContributors } from '@/services/github.js'
 
 const props = defineProps({
   owner: {
@@ -14,65 +14,214 @@ const props = defineProps({
 })
 
 const repo = ref(null)
-const loading = ref(false)
+const topContributors = ref([])
+const hasNextPage = ref(false)
+const repo_loading = ref(false)
+const contributors_loading = ref(false)
 const error = ref(null)
+const page = ref(1)
+const contributorsPerPage = 5
 
 async function loadRepo() {
-  loading.value = true
+  repo_loading.value = true
   error.value = null
   repo.value = null
 
   try {
     repo.value = await getRepo(props.owner, props.name)
+    
   } catch (e) {
     error.value = e.message
   } finally {
-    loading.value = false
+    repo_loading.value = false
+  }
+}
+
+async function loadContributors() {
+  contributors_loading.value = true
+  error.value = null
+  try {
+    const result = await getRepoContributors(props.owner, props.name, page.value)
+    topContributors.value = result.items
+    console.log('Top contributors:', topContributors.value)
+    hasNextPage.value = result.hasNext
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    contributors_loading.value = false
   }
 }
 
 watch(() => [props.owner, props.name], loadRepo, { immediate: true })
+watch(() => [props.owner, props.name, page.value], loadContributors, { immediate: true })
 </script>
 
 <template>
-  <main class="mx-auto max-w-2xl p-6">
-    <p v-if="loading" class="text-gray-500">Loading…</p>
+  <main class="flex flex-col h-screen bg-gray-100">
+    
+    <h1 class="text-2xl font-bold py-10 pl-5 border-b-2 border-primary-500 items-center shrink-0">
+      <RouterLink class='hover:cursor-pointer hover:underline' to="/">GitGlance</RouterLink>
+    </h1>
+
+    <p v-if="repo_loading" class="text-gray-500"> Loading...</p>
 
     <p v-else-if="error" class="text-red-600">{{ error }}</p>
 
-    <article v-else-if="repo" class="space-y-4">
-      <header>
-        <h1 class="text-2xl font-bold text-gray-900">{{ repo.full_name }}</h1>
-        <p v-if="repo.description" class="mt-2 text-gray-600">{{ repo.description }}</p>
+    <!-- Repo information -->
+    <article v-else-if="repo" class="flex flex-1 flex-col items-center min-h-0 overflow-y-auto px-20 w-full">
+      <!-- Repo header -->
+      <header class="flex flex-row justify-center items-center space-x-6 h-1/5 py-5 border-b-2 border-gray-300 w-3/4">
+        <img src="../assets/github-icon.png" alt="GitHub Icon" class="size-20 mb-4" />
+        
+        <div class="flex flex-col justify-between h-full">
+          <h1 class="text-2xl font-bold text-gray-900">{{ repo.full_name }} </h1>
+          <p v-if="repo.description" class="mt-2 text-primary">By: {{ repo.owner.login }}</p>
+          <a
+            :href="repo.html_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-block text-primary font-bold hover:underline "
+          >
+            View on GitHub →
+          </a>
+        </div>
       </header>
 
-      <dl class="flex flex-wrap gap-4 text-sm text-gray-700">
-        <div>
-          <dt class="inline font-medium">Stars:</dt>
-          <dd class="inline ml-1">{{ repo.stargazers_count }}</dd>
-        </div>
-        <div>
-          <dt class="inline font-medium">Forks:</dt>
-          <dd class="inline ml-1">{{ repo.forks_count }}</dd>
-        </div>
-        <div>
-          <dt class="inline font-medium">Open issues:</dt>
-          <dd class="inline ml-1">{{ repo.open_issues_count }}</dd>
-        </div>
-        <div v-if="repo.language">
-          <dt class="inline font-medium">Language:</dt>
-          <dd class="inline ml-1">{{ repo.language }}</dd>
-        </div>
-      </dl>
+      <!-- Repo details -->
+      <div class="flex flex-row justify-center w-3/4 py-10 gap-5">
 
-      <a
-        :href="repo.html_url"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="inline-block text-primary-600 hover:underline"
-      >
-        View on GitHub →
-      </a>
+        <!-- Repo stats (Left Panel) -->
+        <div class="flex flex-col w-1/3 mx-7 gap-5">
+          
+          <h2 class="text-xl font-semibold text-primary mb-2">Repo Stats</h2>
+
+          <div class="grid grid-flow-col grid-rows-2 gap-2">
+            <div class="flex flex-row justify-between mb-2 border-1 border-primary rounded p-2 bg-white shadow">
+              <dt class="inline font-medium">Stars:</dt>
+              <dd class="inline ml-1">{{ repo.stargazers_count }}</dd>
+            </div>
+            <div class="flex flex-row justify-between mb-2 border-1 border-primary rounded p-2 bg-white shadow">
+              <dt class="inline font-medium">Forks:</dt>
+              <dd class="inline ml-1">{{ repo.forks_count }}</dd>
+            </div>
+            <div class="flex flex-row justify-between mb-2 border-1 border-primary rounded p-2 bg-white shadow">
+              <dt class="inline font-medium"># of Open issues:</dt>
+              <dd class="inline ml-1">{{ repo.open_issues_count }}</dd>
+            </div>
+            <div v-if="repo.language" class="flex flex-row justify-between mb-2 border-1 border-primary rounded p-2 bg-white shadow">
+              <dt class="inline font-medium">Primary Language:</dt>
+              <dd class="inline ml-1">{{ repo.language }}</dd>
+            </div>
+          </div>
+          <!-- Top Contributors Table -->
+          <div class="flex flex-col">
+            <h2 class="text-xl font-semibold text-primary mb-2">Top Contributors</h2>
+            <div class="overflow-x-auto rounded border border-gray-300 bg-white shadow min-h-80">
+              <table class="w-full text-left text-sm">
+                <thead class="border-b border-gray-300 bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-3 font-medium text-gray-700">Contributor</th>
+                    <th class="px-4 py-3 font-medium text-gray-700 text-right">Contributions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-if="contributors_loading">
+                    <tr
+                      v-for="n in contributorsPerPage"
+                      :key="`skeleton-${n}`"
+                      class="border-b border-gray-200 last:border-b-0"
+                    >
+                      <td class="px-4 py-3">
+                        <div class="flex items-center gap-3">
+                          <div class="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
+                          <div class="h-4 w-24 rounded bg-gray-200 animate-pulse" />
+                        </div>
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        <div class="ml-auto h-4 w-10 rounded bg-gray-200 animate-pulse" />
+                      </td>
+                    </tr>
+                  </template>
+                  <tr v-else-if="topContributors.length === 0">
+                    <td colspan="2" class="px-4 py-3 text-gray-500">No contributors found.</td>
+                  </tr>
+                  <template v-else>
+                    <tr
+                      v-for="contributor in topContributors"
+                      :key="contributor.id"
+                      class="border-b border-gray-200 last:border-b-0"
+                    >
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-3">
+                        <img
+                          :src="contributor.avatar_url"
+                          :alt="contributor.login"
+                          class="h-8 w-8 rounded-full"
+                        />
+                        <a
+                          :href="contributor.html_url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-primary hover:underline"
+                        >
+                          {{ contributor.login }}
+                        </a>
+                        <span
+                          v-if="contributor.login === repo.owner.login"
+                          class="material-symbols-outlined text-primary text-base"
+                          title="Repository owner"
+                        >
+                          crown
+                        </span>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3 text-right text-gray-700">
+                      {{ contributor.contributions }}
+                    </td>
+                  </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <!-- Pagination controls -->
+            <div class="flex justify-center mt-4">
+              <button 
+                :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
+                  page === 1 ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="page === 1"
+                @click="page--"
+              >
+                Previous
+              </button>
+              <button 
+                :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
+                  !hasNextPage ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="!hasNextPage"
+                @click="page++"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Repo issues (Right Panel) -->
+        <div class="flex flex-col w-2/3 gap-5">
+
+          <div class="flex flex-col">
+            <h2 class="text-xl font-semibold text-primary mb-2">Description</h2>
+            <p class="text-gray-700">{{ repo.description }}</p>
+          </div>
+
+          <div class="flex flex-col w-1/2">
+            <h2 class="text-xl font-semibold text-primary mb-2">Open Issues</h2>
+          </div>
+
+
+        </div>
+      </div>
+
+      
     </article>
   </main>
 </template>
