@@ -1,24 +1,42 @@
 <script setup>
 
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { getMutlipleRepos } from '@/services/github.js'
 import RepoCard from '@/components/RepoCard.vue'
 
 const repos = ref([])
 const loading = ref(false)
 const error = ref(null)
+const empty = ref(false)
 const query = ref(null)
 const limit = ref(20)
 const page = ref(1)
+const totalReturned = ref(1000)
+const totalPages = computed(() => {
+  const fromResults = Math.ceil(totalReturned.value / limit.value)
+  const githubMax = Math.floor(1000 / limit.value)
+  return Math.min(fromResults, githubMax)
+})
 
 async function loadRepos() {
   loading.value = true
   error.value = null
   repos.value = null
+  empty.value = false
 
   try {
-    repos.value = await getMutlipleRepos(query.value, limit.value, page.value)
-    console.log(repos.value)
+    const result = await getMutlipleRepos(query.value, limit.value, page.value)
+    totalReturned.value = Math.min(result.total_count, 1000)
+    console.log('Total returned:', totalReturned.value)
+
+    if (result.total_count === 0) {
+      empty.value = true
+    } else {
+      empty.value = false
+    }
+
+    repos.value = result.items
+   
   } catch (e) {
     error.value = e.message
   } finally {
@@ -31,6 +49,13 @@ onMounted(loadRepos)
 watch([page, limit], () => {
   loadRepos()
 })
+
+const visiblePages = computed(() => {
+  let start = Math.max(1, page.value - 2)
+  let end = Math.min(totalPages.value, start + 4)
+  start = Math.max(1, end - 4)
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+})
 </script>
 
 <template>
@@ -42,14 +67,16 @@ watch([page, limit], () => {
         @keyup.enter="loading = true; page = 1; loadRepos()"
         type="text"
         placeholder="Search repositories..."
-        class="w-1/2 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+        class="w-full lg:w-1/2 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary bg-white"
       />
     </div>
     
     <p v-if="loading" class="flex flex-row justify-center text-gray-500">Loading...</p>
-    <p v-else-if="error" class="text-red-600">{{ error }}</p>
+    <p v-else-if="error" class="flex flex-row justify-center text-red-600">An error has occurred</p>
+    <p v-else-if="empty" class="flex flex-row justify-center text-gray-500">No repositories found.</p>
     <div v-else-if="repos" >
         <!-- Table of repos -->
+        <div class="text-center text-gray-500 mb-4">Showing page: {{ page }} / {{ totalPages }}</div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <RepoCard
                 v-for="repo in repos"
@@ -66,7 +93,16 @@ watch([page, limit], () => {
         <div class="flex justify-center mt-4">
             <button 
                 
-            :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white',
+            :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
+                page === 1 ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="page === 1"
+                @click="page = 1"
+            >
+                <<
+            </button>
+            <button 
+                
+            :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
                 page === 1 ? 'opacity-50 cursor-not-allowed' : '']"
                 :disabled="page === 1"
                 @click="page--"
@@ -74,25 +110,30 @@ watch([page, limit], () => {
                 <
             </button>
             <button
-                v-for="pageNumber in 5"
-                :key="pageNumber"
-                :class="[
-                    'px-4 py-2 mx-1 border-2 rounded hover:cursor-pointer hover:bg-primary hover:text-white',
-                    pageNumber === page || pageNumber === page % 5
-                    ? 'border-primary bg-primary text-white'
-                    : 'border-gray-300 text-primary hover:bg-primary-600',
-                ]"
-                @click="page = Math.floor((page - 1) / 5) * 5 + pageNumber"
+                v-for="pageNum in visiblePages"
+                :key="pageNum"
+                :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
+                    page === pageNum ? 'bg-primary text-white' : '']"
+                @click="page = pageNum"
                 >
-                {{ Math.floor((page - 1) / 5) * 5 + pageNumber }}
+                {{ pageNum }}
             </button>
             <button 
-            :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white',
-                page === 50 ? 'opacity-50 cursor-not-allowed' : '']"
-                :disabled="page === 50"
+            :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
+                page === totalPages ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="page === totalPages"
                 @click="page++"
             >
                 >
+            </button>
+            <button 
+                
+            :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
+                page === totalPages ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="page === totalPages"
+                @click="page = totalPages"
+            >
+                >>
             </button>
         </div>
     </div>

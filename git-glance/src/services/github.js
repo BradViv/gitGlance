@@ -13,7 +13,7 @@ export async function getMutlipleRepos(query, count = 20, page = 1) {
   }
   const repos = await response.json()
 
-  return repos.items
+  return repos
 }
 
 export async function getRepo(owner, name) {
