@@ -1,8 +1,9 @@
 <script setup>
 
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, inject } from 'vue'
 import { getMutlipleRepos } from '@/services/github.js'
 import RepoCard from '@/components/RepoCard.vue'
+import { ViewportKey } from '@/keys/viewport'
 
 const repos = ref([])
 const loading = ref(false)
@@ -17,6 +18,8 @@ const totalPages = computed(() => {
   const githubMax = Math.floor(1000 / limit.value)
   return Math.min(fromResults, githubMax)
 })
+const { isMobile } = inject(ViewportKey)
+
 
 async function loadRepos() {
   loading.value = true
@@ -61,13 +64,15 @@ const visiblePages = computed(() => {
 <template>
   <main>
     <!-- Search bar -->
-    <div class="flex justify-center my-4 py-10 px-20 ">
+    <div class="flex justify-center my-4 py-10">
       <input
         v-model="query"
         @keyup.enter="loading = true; page = 1; loadRepos()"
         type="text"
         placeholder="Search repositories..."
-        class="w-full lg:w-1/2 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+        :class="['px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary bg-white',
+        isMobile ? 'w-full' : 'w-3/4'
+        ]"
       />
     </div>
     
@@ -77,7 +82,19 @@ const visiblePages = computed(() => {
     <div v-else-if="repos" >
         <!-- Table of repos -->
         <div class="text-center text-gray-500 mb-4">Showing page: {{ page }} / {{ totalPages }}</div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div v-if="isMobile" class="grid grid-cols-1 gap-4">
+            <RepoCard
+                v-for="repo in repos"
+                :key="repo.id"
+                :name="repo.name"
+                :owner="repo.owner.login"
+                :description="repo.description"
+                :stars="repo.stargazers_count"
+                :language="repo.language"
+                :lastUpdated="repo.updated_at"
+            />
+        </div>
+        <div v-else class="grid grid-cols-2 gap-4">
             <RepoCard
                 v-for="repo in repos"
                 :key="repo.id"
