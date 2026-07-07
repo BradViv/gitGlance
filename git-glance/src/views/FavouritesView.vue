@@ -20,6 +20,7 @@ function getStoredFavourites() {
     return JSON.parse(localStorage.getItem('favourites') || '[]')
 }
 
+// Slice localStorage favourites by page, then fetch full details from GitHub.
 async function loadFavourites() {
     loadingFavourites.value = true
     const storedFavourites = getStoredFavourites()

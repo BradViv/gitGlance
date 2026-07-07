@@ -31,9 +31,11 @@ const sortParam = computed(() =>
 )
 
 function buildSearchQuery() {
+  // Fall back to a broad default when the search box is empty.
   return query.value?.trim() || 'stars:>0'
 }
 
+// Fetch repos from GitHub using current search, filters, and page.
 async function loadRepos() {
   loading.value = true
   error.value = null
@@ -65,6 +67,7 @@ async function loadRepos() {
   }
 }
 
+// Apply drawer filters and reload from page 1.
 function applyFilters({ sort, language }) {
   currentSort.value = sort
   languageFilter.value = language
