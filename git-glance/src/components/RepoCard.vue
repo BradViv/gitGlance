@@ -43,13 +43,14 @@ function getFavourites() {
     return JSON.parse(localStorage.getItem('favourites') || '[]')
 }
 
+// Sync bookmark icon with localStorage on mount.
 function checkIsFavourite() {
     const favourites = getFavourites()
     isFavourited.value = favourites.some(
         repo => repo.name === props.name && repo.owner === props.owner
     )
 }
-
+// Add repo to favourites. Checks if repo is already saved and pushes it to localstorage
 function addToFavourites() {
     const favourites = getFavourites()
     const alreadySaved = favourites.some(
@@ -62,6 +63,8 @@ function addToFavourites() {
     isFavourited.value = true
 }
 
+// Remove repo from favourites. Checks if repo is already gone and removes it from localstorage
+
 function removeFromFavourites() {
     const favourites = getFavourites()
     const updated = favourites.filter(
@@ -71,6 +74,7 @@ function removeFromFavourites() {
     isFavourited.value = false
 }
 
+// Toggle bookmark state and notify parent (e.g. favourites page) to refresh.
 function toggleFavourite() {
     if (isFavourited.value) {
         removeFromFavourites()

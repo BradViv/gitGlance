@@ -35,6 +35,7 @@ const openIssuesPerPage = 10
 const { width, isMobile } = inject(ViewportKey)
 
 
+// Load repo metadata when route params change.
 async function loadRepo() {
   repo_loading.value = true
   error.value = null
@@ -50,6 +51,7 @@ async function loadRepo() {
   }
 }
 
+// Fetch a page of contributors; hasNext comes from the API Link header.
 async function loadContributors() {
   contributors_loading.value = true
   error.value = null
@@ -64,6 +66,7 @@ async function loadContributors() {
   }
 }
 
+// Fetch a page of open issues for the repo details table.
 async function loadOpenIssues() {
   openIssuesLoading.value = true
   openIssuesError.value = null

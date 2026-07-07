@@ -27,6 +27,7 @@ const draftSort = ref(props.sort)
 const draftLanguage = ref(props.language)
 
 watch(() => props.open, (isOpen) => {
+  // Reset draft values to the last applied filters when opening the drawer.
   if (isOpen) {
     draftSort.value = props.sort
     draftLanguage.value = props.language
@@ -37,6 +38,7 @@ function close() {
   emit('update:open', false)
 }
 
+// Emit selected filters to the parent and close the drawer.
 function apply() {
   emit('apply', {
     sort: draftSort.value,
