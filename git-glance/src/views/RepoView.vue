@@ -32,7 +32,7 @@ const page = ref(1)
 const contributorsPerPage = 5
 const openIssuesPerPage = 10
 
-const { width } = inject(ViewportKey)
+const { width, isMobile } = inject(ViewportKey)
 
 
 async function loadRepo() {
@@ -93,9 +93,12 @@ watch(() => [props.owner, props.name, openIssuesPage.value], loadOpenIssues, { i
     <p v-else-if="error" class="text-red-600">{{ error }}</p>
 
     <!-- Repo information -->
-    <article v-else-if="repo && width < 1300" class="flex flex-1 flex-col items-center min-h-0 overflow-y-auto px-20 w-full">
+    <article v-else-if="repo && width < 1300" 
+      :class="['flex flex-1 flex-col items-center min-h-0 overflow-y-auto w-full',
+        isMobile ? 'px-5' : 'px-20'
+      ]">
       <!-- Repo header -->
-      <header class="flex flex-row justify-center items-center space-x-6 h-1/5 py-5 border-b-2 border-gray-300 w-3/4">
+      <header class="flex flex-row justify-center items-center space-x-6 h-1/5 py-5 border-b-2 border-gray-300 w-full">
         <img src="../assets/github-icon.png" alt="GitHub Icon" class="size-20 mb-4" />
         
         <div class="flex flex-col justify-between h-full">
@@ -334,6 +337,7 @@ watch(() => [props.owner, props.name, openIssuesPage.value], loadOpenIssues, { i
 
       
     </article>
+    <!--Desktop-->
     <article v-else-if="repo && width >= 1300" class="flex flex-1 flex-col items-center min-h-0 overflow-y-auto px-20 w-full">
       <!-- Repo header -->
       <header class="flex flex-row justify-center items-center space-x-6 h-1/5 py-5 border-b-2 border-gray-300 w-3/4">

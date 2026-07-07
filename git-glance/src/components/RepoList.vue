@@ -54,11 +54,17 @@ watch([page, limit], () => {
 })
 
 const visiblePages = computed(() => {
-  let start = Math.max(1, page.value - 2)
-  let end = Math.min(totalPages.value, start + 4)
-  start = Math.max(1, end - 4)
+  const radius = isMobile.value ? 1 : 2
+  let start = Math.max(1, page.value - radius)
+  let end = Math.min(totalPages.value, start + radius * 2)
+  start = Math.max(1, end - radius * 2)
   return Array.from({ length: end - start + 1 }, (_, i) => start + i)
 })
+
+const paginationBtnClass = computed(() => [
+  'border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
+  isMobile.value ? 'px-2 py-1 mx-0.5 text-xs' : 'px-4 py-2 mx-1 text-sm',
+])
 </script>
 
 <template>
@@ -88,6 +94,7 @@ const visiblePages = computed(() => {
                 :key="repo.id"
                 :name="repo.name"
                 :owner="repo.owner.login"
+                :url="repo.owner.avatar_url"
                 :description="repo.description"
                 :stars="repo.stargazers_count"
                 :language="repo.language"
@@ -100,6 +107,7 @@ const visiblePages = computed(() => {
                 :key="repo.id"
                 :name="repo.name"
                 :owner="repo.owner.login"
+                :url="repo.owner.avatar_url"
                 :description="repo.description"
                 :stars="repo.stargazers_count"
                 :language="repo.language"
@@ -108,19 +116,16 @@ const visiblePages = computed(() => {
         </div>
         <!-- Pagination controls -->
         <div class="flex justify-center mt-4">
-            <button 
-                
-            :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
-                page === 1 ? 'opacity-50 cursor-not-allowed' : '']"
+            <button
+                v-if="!isMobile"
+                :class="[paginationBtnClass, page === 1 ? 'opacity-50 cursor-not-allowed' : '']"
                 :disabled="page === 1"
                 @click="page = 1"
             >
                 <<
             </button>
-            <button 
-                
-            :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
-                page === 1 ? 'opacity-50 cursor-not-allowed' : '']"
+            <button
+                :class="[paginationBtnClass, page === 1 ? 'opacity-50 cursor-not-allowed' : '']"
                 :disabled="page === 1"
                 @click="page--"
             >
@@ -129,24 +134,21 @@ const visiblePages = computed(() => {
             <button
                 v-for="pageNum in visiblePages"
                 :key="pageNum"
-                :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
-                    page === pageNum ? 'bg-primary text-white' : '']"
+                :class="[paginationBtnClass, page === pageNum ? 'bg-primary text-white' : '']"
                 @click="page = pageNum"
-                >
+            >
                 {{ pageNum }}
             </button>
-            <button 
-            :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
-                page === totalPages ? 'opacity-50 cursor-not-allowed' : '']"
+            <button
+                :class="[paginationBtnClass, page === totalPages ? 'opacity-50 cursor-not-allowed' : '']"
                 :disabled="page === totalPages"
                 @click="page++"
             >
                 >
             </button>
-            <button 
-                
-            :class="['px-4 py-2 mx-1 border-2 border-gray-300 text-primary rounded hover:bg-primary hover:text-white hover:cursor-pointer',
-                page === totalPages ? 'opacity-50 cursor-not-allowed' : '']"
+            <button
+                v-if="!isMobile"
+                :class="[paginationBtnClass, page === totalPages ? 'opacity-50 cursor-not-allowed' : '']"
                 :disabled="page === totalPages"
                 @click="page = totalPages"
             >
