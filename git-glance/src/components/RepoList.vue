@@ -3,6 +3,7 @@
 import { ref, onMounted, watch, computed, inject } from 'vue'
 import { getMutlipleRepos } from '@/services/github.js'
 import RepoCard from '@/components/RepoCard.vue'
+import FilterDrawer from '@/components/FilterDrawer.vue'
 import { ViewportKey } from '@/keys/viewport'
 
 const repos = ref([])
@@ -13,6 +14,7 @@ const query = ref(null)
 const limit = ref(20)
 const page = ref(1)
 const totalReturned = ref(1000)
+const isFilterOpen = ref(false)
 const totalPages = computed(() => {
   const fromResults = Math.ceil(totalReturned.value / limit.value)
   const githubMax = Math.floor(1000 / limit.value)
@@ -20,6 +22,17 @@ const totalPages = computed(() => {
 })
 const { isMobile } = inject(ViewportKey)
 
+const SORT_OPTIONS = ['BY_STARS', 'LAST_UPDATED']
+const currentSort = ref(SORT_OPTIONS[0])
+const languageFilter = ref('')
+
+const sortParam = computed(() =>
+  currentSort.value === 'LAST_UPDATED' ? 'updated' : 'stars'
+)
+
+function buildSearchQuery() {
+  return query.value?.trim() || 'stars:>0'
+}
 
 async function loadRepos() {
   loading.value = true
@@ -28,9 +41,14 @@ async function loadRepos() {
   empty.value = false
 
   try {
-    const result = await getMutlipleRepos(query.value, limit.value, page.value)
+    const result = await getMutlipleRepos(
+      buildSearchQuery(),
+      limit.value,
+      page.value,
+      sortParam.value,
+      languageFilter.value,
+    )
     totalReturned.value = Math.min(result.total_count, 1000)
-    console.log('Total returned:', totalReturned.value)
 
     if (result.total_count === 0) {
       empty.value = true
@@ -45,6 +63,13 @@ async function loadRepos() {
   } finally {
     loading.value = false
   }
+}
+
+function applyFilters({ sort, language }) {
+  currentSort.value = sort
+  languageFilter.value = language
+  page.value = 1
+  loadRepos()
 }
 
 onMounted(loadRepos)
@@ -70,7 +95,7 @@ const paginationBtnClass = computed(() => [
 <template>
   <main>
     <!-- Search bar -->
-    <div class="flex justify-center my-4 py-10">
+    <div class="flex justify-center my-4 py-10 gap-5">
       <input
         v-model="query"
         @keyup.enter="loading = true; page = 1; loadRepos()"
@@ -80,7 +105,21 @@ const paginationBtnClass = computed(() => [
         isMobile ? 'w-full' : 'w-3/4'
         ]"
       />
+      <button
+        type="button"
+        class="material-symbols-outlined aspect-square size-10 border border-primary bg-primary text-white rounded hover:bg-white hover:text-primary cursor-pointer"
+        @click="isFilterOpen = true"
+      >
+        filter_list
+      </button>
     </div>
+
+    <FilterDrawer
+      v-model:open="isFilterOpen"
+      :sort="currentSort"
+      :language="languageFilter"
+      @apply="applyFilters"
+    />
     
     <p v-if="loading" class="flex flex-row justify-center text-gray-500">Loading...</p>
     <p v-else-if="error" class="flex flex-row justify-center text-red-600">An error has occurred</p>

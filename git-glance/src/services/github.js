@@ -1,13 +1,30 @@
 const BASE_URL = 'https://api.github.com'
 
-export async function getMutlipleRepos(query, count = 20, page = 1) {
-  if (query === null || query.trim() === '') {
-    query = "stars:>0"
-  }
-  console.log('query', query, 'count', count, 'page', page)
-  const response = await fetch(`${BASE_URL}/search/repositories?q=${query}&per_page=${count}&page=${page}`)
+const headers = {
+  Accept: 'application/vnd.github+json',
+  ...(import.meta.env.VITE_GITHUB_TOKEN && {
+    Authorization: `Bearer ${import.meta.env.VITE_GITHUB_TOKEN}`,
+  }),
+}
 
-  console.log('response', response)
+export async function getMutlipleRepos(query, count = 20, page = 1, sort = 'stars', language = '') {
+  if (query === null || query.trim() === '') {
+    query = 'stars:>0'
+  }
+
+  if (language?.trim()) {
+    query += ` language:${language.trim()}`
+  }
+
+  const params = new URLSearchParams({
+    q: query,
+    per_page: String(count),
+    page: String(page),
+    sort,
+    order: 'desc',
+  })
+
+  const response = await fetch(`${BASE_URL}/search/repositories?${params}`, { headers })
   if (!response.ok) {
     throw new Error(`GitHub API error (${response.status})`)
   }
@@ -17,7 +34,7 @@ export async function getMutlipleRepos(query, count = 20, page = 1) {
 }
 
 export async function getRepo(owner, name) {
-  const response = await fetch(`${BASE_URL}/repos/${owner}/${name}`)
+  const response = await fetch(`${BASE_URL}/repos/${owner}/${name}`, { headers })
 
   if (!response.ok) {
     const message =
@@ -32,7 +49,7 @@ export async function getRepo(owner, name) {
 
 export async function getRepoContributors(owner, repo_name, page = 1, count = 5) {
 
-  const response = await fetch(`${BASE_URL}/repos/${owner}/${repo_name}/contributors?per_page=${count}&page=${page}`)
+  const response = await fetch(`${BASE_URL}/repos/${owner}/${repo_name}/contributors?per_page=${count}&page=${page}`, { headers })
   
   if (!response.ok) {
     const message =
@@ -49,7 +66,7 @@ export async function getRepoContributors(owner, repo_name, page = 1, count = 5)
 }
 
 export async function getRepoOpenIssues(owner, repo_name, page = 1, count = 10) {
-  const response = await fetch(`${BASE_URL}/repos/${owner}/${repo_name}/issues?state=open&per_page=${count}&page=${page}`)
+  const response = await fetch(`${BASE_URL}/repos/${owner}/${repo_name}/issues?state=open&per_page=${count}&page=${page}`, { headers })
 
   if (!response.ok) {
     const message =
