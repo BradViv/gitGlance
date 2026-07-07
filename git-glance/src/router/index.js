@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import RepoView from '@/views/RepoView.vue'
 import HomeView from '@/views/HomeView.vue'
-
+import FavouritesView from '@/views/FavouritesView.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -16,6 +16,11 @@ const router = createRouter({
       component: RepoView,
       props: true,
     },
+    {
+      path: '/favourites',
+      name: 'favourites',
+      component: FavouritesView,
+    }
   ],
 })
 
